@@ -161,7 +161,7 @@ impl ObjectFile {
     fn empty(engine_path: &[u8]) -> Self {
         let mut object = object::write::Object::new(
             object::BinaryFormat::Coff,
-            object::Architecture::I386,
+            object::Architecture::X86_64,
             object::Endianness::Little,
         );
         object.set_mangling(object::write::Mangling::None);
@@ -176,9 +176,7 @@ impl ObjectFile {
         //
         // This makes different relocations with different data and different names
         // to match, if they offsets match. These 4 bytes prevent that.
-        if engine_path == b"c:\\survarium\\sources\\" {
-            object.append_section_data(rdata_section_id, &0_u32.to_le_bytes(), 4);
-        }
+        object.append_section_data(rdata_section_id, &0_u32.to_le_bytes(), 4);
 
         Self {
             object,
@@ -279,7 +277,7 @@ fn resolve_relative_relocations<'s>(
     let mut fun_bytes = coff_data[fun_rva..fun_rva + fun_size].to_vec();
 
     let code = &coff_data[fun_rva..fun_rva + fun_size];
-    let mut decoder = Decoder::with_ip(32, code, fun_va as u64, DecoderOptions::NONE);
+    let mut decoder = Decoder::with_ip(64, code, fun_va as u64, DecoderOptions::NONE);
     let mut ix = Instruction::default();
 
     while decoder.can_decode() {
@@ -297,9 +295,13 @@ fn resolve_relative_relocations<'s>(
         let target_va = match ix.op0_kind() {
             OpKind::NearBranch16 => ix.near_branch16() as u64,
             OpKind::NearBranch32 => ix.near_branch32() as u64,
-            OpKind::NearBranch64 => unreachable!(),
+            OpKind::NearBranch64 => ix.near_branch64() as u64,
             _ => continue,
         };
+
+        if target_va < u64::from(env.image_base){
+            break;
+        }
 
         let target_rva = target_va - u64::from(env.image_base);
 

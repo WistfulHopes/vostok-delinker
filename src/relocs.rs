@@ -49,7 +49,7 @@ struct RelocEntry {
 
 pub fn resolve_absolute_relocations<'s>(
     env: &Env,
-    exe: &'static object::read::pe::PeFile32<'static>,
+    exe: &'static object::read::pe::PeFile64<'static>,
     symbols: &'s pdb_symbols::PdbSymbols,
 ) -> anyhow::Result<(Vec<u8>, BTreeMap<usize, RelocKind<'s>>)> {
     let Some(reloc_sec) = exe.section_by_name(".reloc") else {
@@ -97,7 +97,7 @@ pub fn resolve_absolute_relocations<'s>(
             let reloc_rva = (page_rva + u32::from(reloc_offset)).to_usize();
 
             let target_va =
-                bytemuck::pod_read_unaligned::<u32>(&exe_data[reloc_rva..reloc_rva + 4]);
+                bytemuck::pod_read_unaligned::<u64>(&exe_data[reloc_rva..reloc_rva + 4]);
             let target_rva = (target_va - env.image_base).to_usize();
 
             let coff_data_reloc = &mut coff_data[reloc_rva..reloc_rva + 4];
@@ -110,7 +110,7 @@ pub fn resolve_absolute_relocations<'s>(
                         .next_back()
                         .expect("all function relocs to be named");
 
-                    let diff = u32::try_from(target_rva - *function_rva)?;
+                    let diff = u64::try_from(target_rva - *function_rva)?;
                     coff_data_reloc.copy_from_slice(&diff.to_le_bytes());
 
                     relocs_rva.insert(
@@ -125,7 +125,7 @@ pub fn resolve_absolute_relocations<'s>(
                         Some((string_rva, (string_mangled_name, string)))
                             if target_rva - string_rva < string.len() =>
                         {
-                            let diff = u32::try_from(target_rva - *string_rva)?;
+                            let diff = u64::try_from(target_rva - *string_rva)?;
                             coff_data_reloc.copy_from_slice(&diff.to_le_bytes());
 
                             relocs_rva.insert(
@@ -147,7 +147,7 @@ pub fn resolve_absolute_relocations<'s>(
                             // @TODO: Many relocations (~2k) have very huge diffs,
                             // meaning they do not actually belong to a found symbol.
                             // This needs to be investigated (if this will affect objdiff matching)
-                            let diff = u32::try_from(target_rva - *constant_rva)?;
+                            let diff = u64::try_from(target_rva - *constant_rva)?;
                             coff_data_reloc.copy_from_slice(&diff.to_le_bytes());
 
                             relocs_rva.insert(
@@ -173,7 +173,7 @@ pub fn resolve_absolute_relocations<'s>(
                     // @TODO: Many relocations (~10k) have very huge diffs,
                     // meaning they do not actually belong to a found symbol.
                     // This needs to be investigated (if this will affect objdiff matching)
-                    let diff = u32::try_from(target_rva - *static_rva)?;
+                    let diff = u64::try_from(target_rva - *static_rva)?;
                     coff_data_reloc.copy_from_slice(&diff.to_le_bytes());
 
                     relocs_rva.insert(
@@ -192,7 +192,7 @@ pub fn resolve_absolute_relocations<'s>(
     Ok((coff_data, relocs_rva))
 }
 
-fn map_pe_image(exe: &object::read::pe::PeFile32) -> Vec<u8> {
+fn map_pe_image(exe: &object::read::pe::PeFile64) -> Vec<u8> {
     let image_base = exe
         .nt_headers()
         .optional_header

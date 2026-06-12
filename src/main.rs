@@ -68,8 +68,8 @@ fn main() -> anyhow::Result<()> {
     } = Cli::parse();
 
     let exe: &[u8] = std::fs::read(exe_path)?.leak();
-    let exe = object::read::pe::PeFile32::parse(exe)?;
-    let exe: &'static object::read::pe::PeFile32 = leak(exe);
+    let exe = object::read::pe::PeFile64::parse(exe)?;
+    let exe: &'static object::read::pe::PeFile64 = leak(exe);
 
     let pdb = std::fs::read(pdb_path)?.leak();
     let pdb = std::io::Cursor::new(pdb);
@@ -93,7 +93,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn process_executable<S: pdb2::Source<'static> + 'static>(
-    exe: &'static object::read::pe::PeFile32<'static>,
+    exe: &'static object::read::pe::PeFile64<'static>,
     mut pdb: pdb2::PDB<'static, S>,
     engine_path: &[u8],
     output_path: &std::path::Path,
@@ -154,7 +154,7 @@ fn process_executable<S: pdb2::Source<'static> + 'static>(
 }
 
 pub struct Env<'a> {
-    pub image_base: u32,
+    pub image_base: u64,
     pub text: SecInfo<'a>,
     pub rdata: SecInfo<'a>,
     pub data: SecInfo<'a>,
@@ -166,7 +166,7 @@ pub struct Env<'a> {
 
 impl Env<'_> {
     fn build<S>(
-        exe: &'static object::read::pe::PeFile32<'static>,
+        exe: &'static object::read::pe::PeFile64<'static>,
         pdb: &mut pdb2::PDB<'static, S>,
     ) -> anyhow::Result<Self>
     where
