@@ -1,0 +1,3 @@
+[submodule "msvc-demangler-rust"]
+	path = msvc-demangler-rust
+	url = https://github.com/mstange/msvc-demangler-rust.git
